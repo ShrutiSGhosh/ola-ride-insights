@@ -48,7 +48,7 @@ ola-ride-insights/
 ## 🚀 How to run locally
 1. Clone the repo:
 ```bash
-git clone https://github.com/<YOUR_GITHUB_USERNAME>/ola-ride-insights.git
+git clone https://github.com/<ShrutiSGhosh>/ola-ride-insights.git
 cd ola-ride-insights/app
 Create a virtual environment and install dependencies:
 
