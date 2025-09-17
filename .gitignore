@@ -1,0 +1,56 @@
+# --------------------
+# Python
+# --------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dll
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# --------------------
+# Jupyter
+# --------------------
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+*.ipynb.bak
+
+# --------------------
+# VS Code
+# --------------------
+.vscode/
+*.code-workspace
+
+# --------------------
+# Streamlit
+# --------------------
+.streamlit/
+
+# --------------------
+# Data files
+# --------------------
+# Large raw data should stay local, not on GitHub
+data/ola_full.csv
+data/ola_sample.csv
+data/ola_cleaned.csv
+
+# Aggregates and temp outputs can be ignored unless needed
+data/aggregates/
+
+# --------------------
+# Logs & Misc
+# --------------------
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
