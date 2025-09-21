@@ -17,6 +17,7 @@ venv/
 ENV/
 env/
 *.env
+app/.venv/
 
 # --------------------
 # Jupyter
