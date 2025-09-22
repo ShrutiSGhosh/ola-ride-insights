@@ -1,0 +1,38 @@
+{
+  "correlation_heatmap.png": {
+    "insight": "Ride duration correlates strongly with vehicle turnaround time (V_TAT, r≈0.91) and moderately with customer turnaround time (C_TAT, r≈0.41). Booking value and ride distance show almost no correlation — check fare logic or data quality."
+  },
+  "avg_distance_by_vehicle.png": {
+    "insight": "Average ride distances are ~14–16 km for cars and bikes; Autos show much shorter trips (~7 km). Use this to tune vehicle allocation and pricing for last-mile vs longer trips."
+  },
+  "cancellations_by_vehicle.png": {
+    "insight": "Driver-side cancellations are the largest share across vehicle types, especially for premium categories. Consider driver incentives or stricter SLAs for premium vehicles."
+  },
+  "cancellations_by_payment.png": {
+    "insight": "Cancellation rates are similar across payment methods. Cash and UPI account for the largest volumes, so small differences there affect totals most."
+  },
+  "cancellations_by_hour.png": {
+    "insight": "Driver cancellations are consistently higher than customer cancellations across hours, with mild peaks during typical commute windows (≈7–10 and 17–20)."
+  },
+  "customer_segmentation.png": {
+    "insight": "Top 5% by value and top 5% by frequency have similar ride distances (~14 km) and ratings (~4.0). Treat value and frequency segments with tailored retention strategies."
+  },
+  "weekly_ride_volume.png": {
+    "insight": "Weekly ride volume is stable around a baseline with an end-of-period drop driven by partial data; flag incomplete weeks when reporting."
+  },
+  "rides_by_day.png": {
+    "insight": "Weekdays (Mon–Wed) show higher volumes; weekends are lower. Opportunity: weekend-targeted promotions to smooth demand."
+  },
+  "ride_distance_boxplot.png": {
+    "insight": "Most rides fall between 0–26 km (IQR=26). Few long rides near 50 km exist but are within expected variability."
+  },
+  "booking_value_boxplot.png": {
+    "insight": "Booking values cluster between ₹200–₹600 with a long right tail; values > ~₹1,190 are flagged as potential high-value outliers (validate for surge/pricing errors)."
+  },
+  "incomplete_reasons.png": {
+    "insight": "Top incomplete/failed ride reasons include 'Customer Demand' and 'Vehicle Breakdown'. Focus on fleet maintenance and flexible customer options to reduce incompletes."
+  },
+  "top_customers_value.png": {
+    "insight": "Top customers contribute materially to revenue (top ~10 customers ~₹5k–8k). Consider loyalty perks to retain these high-value users."
+  }
+}

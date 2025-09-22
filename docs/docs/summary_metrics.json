@@ -1,0 +1,56 @@
+{
+  "total_rides": 103024,
+  "success_count": 63967,
+  "canceled_count": 39057,
+  "cancellation_rate": 37,
+  "canceled_by_driver": 18434,
+  "canceled_by_customer": 10499,
+  "driver_not_found": 10124,
+  "peak_hours": 12,
+  "median_duration": 255,
+  "top_payment_method": "Cash",
+  "top_payment_value": 19260316,
+  "total_revenue": 56534614,
+  "avg_driver_rating": 4,
+  "avg_customer_rating": 4,
+  "top_customers": [
+    {
+      "Customer_ID": "CID785112",
+      "Booking_Value": 8025
+    },
+    {
+      "Customer_ID": "CID308763",
+      "Booking_Value": 6281
+    },
+    {
+      "Customer_ID": "CID734557",
+      "Booking_Value": 6177
+    },
+    {
+      "Customer_ID": "CID353074",
+      "Booking_Value": 6110
+    },
+    {
+      "Customer_ID": "CID836942",
+      "Booking_Value": 6019
+    }
+  ],
+  "top_driver_cancel_reasons": {
+    "Personal & Car related issue": 6542,
+    "Customer related issue": 5413,
+    "Customer was coughing/sick": 3654,
+    "More than permitted people in there": 2825
+  },
+  "top_customer_cancel_reasons": {
+    "Driver is not moving towards pickup location": 3175,
+    "Driver asked to cancel": 2670,
+    "Change of plans": 2081,
+    "AC is Not working": 1568,
+    "Wrong Address": 1005
+  },
+  "top_incomplete_reasons": {
+    "Customer Demand": 1601,
+    "Vehicle Breakdown": 1591,
+    "Other Issue": 734
+  }
+}

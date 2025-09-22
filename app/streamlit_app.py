@@ -1,218 +1,199 @@
 # app/streamlit_app.py
-import os
-import re
-import csv
-import streamlit as st
-import pandas as pd
-import sqlite3
-from pathlib import Path
-from streamlit.components.v1 import html as st_html
+"""
+Interactive Streamlit dashboard for Ola Ride Insights
+- Dashboard (KPIs + plots)
+- Screenshots & Insights (read-only from docs/figures + docs/figures/insights.json)
+- SQL Runner (in-memory SQLite)
+- About
+"""
 
+from pathlib import Path
+import json
+import sqlite3
+from typing import Dict
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import streamlit as st
+
+# -----------------------------------------------------------------------------
+# Page config
+# -----------------------------------------------------------------------------
 st.set_page_config(page_title="Ola Ride Insights", layout="wide")
 
+# -----------------------------------------------------------------------------
+# Paths
+# -----------------------------------------------------------------------------
+ROOT = Path(__file__).resolve().parents[1]         # project root
+DATA_DIR = ROOT / "data"
+FIG_DIR = ROOT / "docs" / "figures"
+LOGO_DIR = FIG_DIR / "logos"                       # <-- your logos folder
+INSIGHTS_JSON = FIG_DIR / "insights.json"          # optional
 
-# ---------------- Utility & Robust CSV Loader ----------------
-EXPECTED_KEYWORDS = ["booking", "date", "time", "customer", "vehicle", "booking_id"]
+# Prefer cleaned dataset
+CLEANED = DATA_DIR / "ola_cleaned.csv"
+FULL = DATA_DIR / "ola_full.csv"
+SAMPLE = DATA_DIR / "ola_sample.csv"  # optional fallback
 
+# -----------------------------------------------------------------------------
+# Data loading
+# -----------------------------------------------------------------------------
+def load_data(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(path)
 
-def detect_delimiter_and_header(path, max_lines=120):
-    sample_lines = []
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        for i, line in enumerate(f):
-            sample_lines.append(line)
-            if i + 1 >= max_lines:
-                break
-    sample_text = "".join(sample_lines)
-
-    delimiter = ","
+    # robust CSV read
     try:
-        sniffer = csv.Sniffer()
-        dialect = sniffer.sniff(sample_text)
-        delimiter = dialect.delimiter
+        df = pd.read_csv(path, low_memory=False)
     except Exception:
-        for d in [",", "\t", ";", "|"]:
-            if d in sample_text:
-                delimiter = d
-                break
+        df = pd.read_csv(path, engine="python", on_bad_lines="skip")
 
-    header_index = 0
-    for idx, line in enumerate(sample_lines):
-        low = line.lower()
-        matches = sum(1 for kw in EXPECTED_KEYWORDS if kw in low)
-        if matches >= 2:
-            header_index = idx
-            break
+    # normalize column names
+    df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
 
-    return delimiter, header_index, sample_text
-
-
-def drop_garbage_columns(df: pd.DataFrame):
-    to_drop = []
-    for col in df.columns:
-        try:
-            series = df[col].dropna().astype(str).str.strip()
-        except Exception:
-            series = pd.Series([], dtype="object")
-        if series.empty:
-            to_drop.append(col)
-            continue
-        if (series == "").all():
-            to_drop.append(col)
-            continue
-        uniq = series.unique()
-        if len(uniq) > 0 and all(str(v).upper().startswith("#NAME") for v in uniq):
-            to_drop.append(col)
-            continue
-        if str(col).lower().startswith("unnamed"):
-            non_null_fraction = series.count() / len(df) if len(df) > 0 else 0
-            if non_null_fraction < 0.1:
-                to_drop.append(col)
-    if to_drop:
-        df = df.drop(columns=to_drop)
-    return df
-
-
-def load_data_safe(path):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"File not found: {path}")
-
-    delim, header_idx, sample = detect_delimiter_and_header(path, max_lines=120)
-
-    try:
-        df = pd.read_csv(path, sep=delim, header=header_idx, engine="python", on_bad_lines="skip")
-    except Exception:
-        try:
-            df = pd.read_csv(path, sep=delim, header=header_idx, on_bad_lines="skip", low_memory=False)
-        except Exception:
-            df = pd.read_csv(path, on_bad_lines="skip")
-
-    df.columns = [str(c).strip().rstrip(",").replace("\ufeff", "") for c in df.columns]
-    df = df.replace({"null": pd.NA, "NULL": pd.NA, "None": pd.NA, "NaN": pd.NA, "": pd.NA})
-    df = drop_garbage_columns(df)
-
-    # find date/time
-    date_col = None
-    for c in df.columns:
-        if re.search(r"\bdate\b", str(c), flags=re.I):
-            date_col = c
-            break
-    if date_col is None:
-        for c in df.columns:
-            if re.search(r"timestamp|datetime", str(c), flags=re.I):
-                date_col = c
-                break
-
-    time_col = None
-    for c in df.columns:
-        if re.search(r"\btime\b", str(c), flags=re.I):
-            time_col = c
-            break
-
-    if date_col is not None and time_col is not None:
-        try:
-            df["Datetime"] = pd.to_datetime(df[date_col].astype(str).str.strip() + " " + df[time_col].astype(str).str.strip(), errors="coerce")
-        except Exception:
-            df["Datetime"] = pd.to_datetime(df[date_col], errors="coerce")
-    elif date_col is not None:
-        df["Datetime"] = pd.to_datetime(df[date_col].astype(str).str.strip(), errors="coerce")
+    # create Datetime if needed
+    if "Datetime" not in df.columns:
+        if "Date" in df.columns and "Time" in df.columns:
+            df["Datetime"] = pd.to_datetime(
+                df["Date"].astype(str).str.strip() + " " + df["Time"].astype(str).str.strip(),
+                errors="coerce",
+            )
+        elif "Date" in df.columns:
+            df["Datetime"] = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce")
+        else:
+            df["Datetime"] = pd.NaT
     else:
-        df["Datetime"] = pd.NaT
+        try:
+            df["Datetime"] = pd.to_datetime(df["Datetime"], errors="coerce")
+        except Exception:
+            pass
 
     # numeric coercions
     for col in ["Booking_Value", "Ride_Distance", "Driver_Ratings", "Customer_Rating", "V_TAT", "C_TAT"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    # normalize Booking_Status capitalization
     if "Booking_Status" in df.columns:
         df["Booking_Status"] = df["Booking_Status"].astype(str).str.strip().str.title()
 
-    for col in ["Customer_ID", "Booking_ID", "Vehicle_Type", "Payment_Method", "Pickup_Location", "Drop_Location"]:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.strip().replace({"nan": pd.NA})
-
-    # derived features if possible (safe and idempotent)
-    if "Datetime" in df.columns:
+    # derived features
+    if "ride_hour" not in df.columns:
         try:
             df["ride_hour"] = df["Datetime"].dt.hour
+        except Exception:
+            df["ride_hour"] = pd.NA
+
+    if "day_of_week" not in df.columns:
+        try:
             df["day_of_week"] = df["Datetime"].dt.day_name()
         except Exception:
-            pass
+            df["day_of_week"] = pd.NA
 
-    if {"V_TAT", "C_TAT"}.intersection(set(df.columns)):
-        v = pd.to_numeric(df.get("V_TAT", pd.Series(dtype="float")), errors="coerce").fillna(0)
-        c = pd.to_numeric(df.get("C_TAT", pd.Series(dtype="float")), errors="coerce").fillna(0)
-        df["ride_duration"] = v + c
-    else:
-        df["ride_duration"] = pd.NA
+    if "ride_duration" not in df.columns:
+        if "V_TAT" in df.columns or "C_TAT" in df.columns:
+            v = pd.to_numeric(df.get("V_TAT", 0)).fillna(0)
+            c = pd.to_numeric(df.get("C_TAT", 0)).fillna(0)
+            df["ride_duration"] = v + c
+        else:
+            df["ride_duration"] = pd.NA
 
-    # peak heuristic (7-10, 17-22)
-    if "ride_hour" in df.columns:
-        df["is_peak"] = df["ride_hour"].apply(lambda h: 1 if (pd.notna(h) and (7 <= int(h) <= 10 or 17 <= int(h) <= 22)) else 0)
-    else:
-        df["is_peak"] = 0
+    # is_peak heuristic (7–10, 17–20)
+    if "is_peak" not in df.columns:
+        def _is_peak(h):
+            if pd.isna(h):
+                return 0
+            h = int(h)
+            return 1 if (7 <= h <= 10 or 17 <= h <= 20) else 0
+        df["is_peak"] = df["ride_hour"].apply(_is_peak)
 
     return df
 
 
-@st.cache_data
-def load_data_cached(path: str):
-    return load_data_safe(path)
-
-
-# ---------------- Dataset Path (prefer cleaned) ----------------
-project_root = Path(__file__).resolve().parents[1]
-cleaned_path = project_root / "data" / "ola_cleaned.csv"
-full_path = project_root / "data" / "ola_full.csv"
-
-if cleaned_path.exists():
-    DATA_PATH = cleaned_path
-elif full_path.exists():
-    DATA_PATH = full_path
+# choose dataset
+if CLEANED.exists():
+    DATA_PATH = CLEANED
+elif FULL.exists():
+    DATA_PATH = FULL
+elif SAMPLE.exists():
+    DATA_PATH = SAMPLE
 else:
-    st.error("Dataset not found. Please place 'ola_cleaned.csv' or 'ola_full.csv' in the data/ folder.")
+    DATA_PATH = None
+
+if DATA_PATH is None:
+    st.error("No dataset found in data/. Please place ola_cleaned.csv or ola_full.csv in the data/ folder.")
     st.stop()
 
-DATA_PATH_STR = str(DATA_PATH)
+# load data
+try:
+    df = load_data(DATA_PATH)
+except Exception as e:
+    st.exception(f"Failed to load dataset: {e}")
+    st.stop()
 
-# ---------------- Load Data (with spinner) ----------------
-with st.spinner(f"Loading data from {DATA_PATH.name} ..."):
-    try:
-        df = load_data_cached(DATA_PATH_STR)
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        try:
-            with open(DATA_PATH_STR, "r", encoding="utf-8", errors="replace") as fh:
-                preview = "".join(fh.readlines()[:80])
-                st.code(preview)
-        except Exception:
-            pass
-        st.stop()
 
-# show loaded path in sidebar & caption
-st.sidebar.markdown(f"**Loaded dataset:** `{DATA_PATH.name}`")
-st.caption(f"Data source: {DATA_PATH.name}")
+# -----------------------------------------------------------------------------
+# Helpers / cache
+# -----------------------------------------------------------------------------
+@st.cache_data
+def get_basic_stats(data: pd.DataFrame) -> Dict:
+    stats = {
+        "rows": len(data),
+        "cols": data.shape[1],
+        "start_date": None,
+        "end_date": None,
+    }
+    if "Datetime" in data.columns and not data["Datetime"].dropna().empty:
+        stats["start_date"] = str(data["Datetime"].dropna().min().date())
+        stats["end_date"] = str(data["Datetime"].dropna().max().date())
+    return stats
 
-# ---------------- Sidebar Filters ----------------
-st.sidebar.header("Filters")
+basic_stats = get_basic_stats(df)
 
-if "Datetime" in df.columns and not df["Datetime"].dropna().empty:
+# collect logos (optional)
+logo_files = {}
+if LOGO_DIR.exists():
+    for p in LOGO_DIR.iterdir():
+        if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".svg"}:
+            logo_files[p.stem.lower()] = p
+
+# -----------------------------------------------------------------------------
+# Sidebar: navigation + filters
+# -----------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## Dataset")
+    st.write(f"Loaded: `{DATA_PATH.name}`")
+    st.write(f"Rows: **{basic_stats['rows']:,}** • Columns: **{basic_stats['cols']}**")
+    if basic_stats.get("start_date"):
+        st.write(f"Range: {basic_stats['start_date']} → {basic_stats['end_date']}")
+
+    st.markdown("---")
+    st.markdown("## Navigation")
+    PAGE = st.radio("Go to", ["Dashboard", "Screenshots & Insights", "SQL Runner", "About"])
+
+    st.markdown("---")
+    st.markdown("## Filters")
+
+    # date range
     try:
         min_date = df["Datetime"].dropna().min().date()
         max_date = df["Datetime"].dropna().max().date()
     except Exception:
         min_date = pd.to_datetime("2020-01-01").date()
         max_date = pd.to_datetime("2025-12-31").date()
-else:
-    min_date = pd.to_datetime("2020-01-01").date()
-    max_date = pd.to_datetime("2025-12-31").date()
+    date_range = st.date_input("Date range", [min_date, max_date])
 
-date_range = st.sidebar.date_input("Date range", [min_date, max_date])
+    # vehicle & payment options
+    vehicle_options = list(df["Vehicle_Type"].dropna().unique()) if "Vehicle_Type" in df.columns else []
+    payment_options = list(df["Payment_Method"].dropna().unique()) if "Payment_Method" in df.columns else []
 
-vehicle_options = list(df["Vehicle_Type"].dropna().unique()) if "Vehicle_Type" in df.columns else []
-payment_options = list(df["Payment_Method"].dropna().unique()) if "Payment_Method" in df.columns else []
-
-vehicle_types = st.sidebar.multiselect("Vehicle type", options=vehicle_options, default=vehicle_options[:5] if vehicle_options else [])
-payment_methods = st.sidebar.multiselect("Payment method", options=payment_options, default=payment_options if payment_options else [])
+    vehicle_types = st.multiselect(
+        "Vehicle type", options=vehicle_options, default=vehicle_options[:5] if vehicle_options else []
+    )
+    payment_methods = st.multiselect(
+        "Payment method", options=payment_options, default=payment_options if payment_options else []
+    )
 
 # apply filters
 mask = pd.Series(True, index=df.index)
@@ -222,7 +203,6 @@ if "Datetime" in df.columns:
         mask &= df["Datetime"].dt.date <= date_range[1]
     except Exception:
         pass
-
 if vehicle_types and "Vehicle_Type" in df.columns:
     mask &= df["Vehicle_Type"].isin(vehicle_types)
 if payment_methods and "Payment_Method" in df.columns:
@@ -230,146 +210,320 @@ if payment_methods and "Payment_Method" in df.columns:
 
 df_f = df.loc[mask].copy()
 
-# ---------------- KPI cards (with colored backgrounds) ----------------
-def kpi_card(label: str, value: str, bg: str = "#ffffff", color: str = "white"):
-    html = f"""
-    <div style="
-        background: {bg};
-        padding: 12px 16px;
-        border-radius: 12px;
-        box-shadow: rgba(0,0,0,0.06) 0px 4px 10px;
-        text-align: left;
-        color: {color};
-        ">
-        <div style="font-size:13px; opacity:0.9;">{label}</div>
-        <div style="font-size:22px; font-weight:700; margin-top:6px;">{value}</div>
-    </div>
-    """
-    return html
-
-
-st.title("Ola Ride Insights Dashboard")
-st.caption(f"Data source: {DATA_PATH.name}")
-
-col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1])
-
-total_rides = f"{len(df_f):,}"
-successful = int(((df_f["Booking_Status"] == "Success") if "Booking_Status" in df_f.columns else pd.Series(False, index=df_f.index)).sum())
-canceled = int(((df_f["Booking_Status"] != "Success") if "Booking_Status" in df_f.columns else pd.Series(False, index=df_f.index)).sum())
-cancellation_rate = f"{(canceled/len(df_f)*100):.2f}%" if len(df_f)>0 else "N/A"
-total_revenue = f"₹{df_f['Booking_Value'].sum():,.2f}" if "Booking_Value" in df_f.columns else "N/A"
-avg_rating = f"{df_f['Driver_Ratings'].mean():.2f}" if "Driver_Ratings" in df_f.columns else "N/A"
-
-col1.markdown(kpi_card("Total Rides", total_rides, bg="#198754", color="#fff"), unsafe_allow_html=True)
-col2.markdown(kpi_card("Successful Rides", f"{successful:,}", bg="#0d6efd", color="#fff"), unsafe_allow_html=True)
-col3.markdown(kpi_card("Cancellation Rate", cancellation_rate, bg="#dc3545", color="#fff"), unsafe_allow_html=True)
-col4.markdown(kpi_card("Total Booking Value", total_revenue, bg="#ff9100", color="#fff"), unsafe_allow_html=True)
-col5.markdown(kpi_card("Avg Driver Rating", avg_rating, bg="#6f42c1", color="#fff"), unsafe_allow_html=True)
-
-# ---------------- Utility actions: preview & download ----------------
-st.markdown("### Dataset preview & export")
-st.write(f"Filtered rows: **{len(df_f):,}**  |  Columns: **{len(df_f.columns):,}**")
-
-with st.expander("Show sample rows"):
-    st.dataframe(df_f.head(10))
-
-csv_bytes = df_f.to_csv(index=False).encode("utf-8")
-st.download_button("Download filtered data as CSV", data=csv_bytes, file_name="ola_filtered.csv", mime="text/csv")
-
-# ---------------- SQL runner (in-memory SQLite) ----------------
-conn = sqlite3.connect(":memory:")
-try:
-    df.to_sql("ola_rides", conn, index=False, if_exists="replace")
-except Exception:
-    safe_df = df.copy()
-    safe_df.columns = [str(c).replace("-", "_").replace(" ", "_") for c in safe_df.columns]
-    safe_df.to_sql("ola_rides", conn, index=False, if_exists="replace")
-
-st.header("Run SQL (SQLite)")
-default_sql = "SELECT Booking_ID, Date, Time, Booking_Status, Customer_ID, Vehicle_Type, Booking_Value, Payment_Method FROM ola_rides WHERE Booking_Status = 'Success' LIMIT 100;"
-sql = st.text_area("SQL", value=default_sql, height=160)
-
-if st.button("Run SQL"):
-    try:
-        res = pd.read_sql_query(sql, conn)
-        st.dataframe(res)
-    except Exception as e:
-        st.error(f"SQL error: {e}")
-
-# ---------------- Visualizations ----------------
-st.header("Sample Visualizations")
-
-st.subheader("📈 Ride Volume Over Time")
-if "Datetime" in df_f.columns and not df_f["Datetime"].dropna().empty:
-    rides_by_date = df_f.groupby(df_f["Datetime"].dt.date).size().rename("count")
+# -----------------------------------------------------------------------------
+# Small plotting helpers
+# -----------------------------------------------------------------------------
+def plt_line_rides_by_date(data: pd.DataFrame):
+    if "Datetime" not in data.columns or data["Datetime"].dropna().empty:
+        st.info("No valid Datetime for time-series.")
+        return
+    rides_by_date = data.groupby(data["Datetime"].dt.date).size().rename("count")
     rides_by_date.index = pd.to_datetime(rides_by_date.index)
-    st.line_chart(rides_by_date)
-else:
-    st.info("No valid Datetime column available for time series.")
+    fig, ax = plt.subplots(figsize=(10, 3))
+    ax.plot(rides_by_date.index, rides_by_date.values, marker="o", linewidth=1)
+    ax.set_title("Daily Ride Volume")
+    ax.set_ylabel("Rides")
+    ax.grid(alpha=0.3)
+    st.pyplot(fig)
 
-st.subheader("💰 Revenue by Payment Method")
-if "Payment_Method" in df_f.columns and "Booking_Value" in df_f.columns:
-    rev_by_payment = df_f.groupby("Payment_Method")["Booking_Value"].sum().sort_values(ascending=False)
-    st.bar_chart(rev_by_payment)
-else:
-    st.write("Payment_Method or Booking_Value column missing.")
 
-st.subheader("🚗 Average Ride Distance by Vehicle Type")
-if "Vehicle_Type" in df_f.columns and "Ride_Distance" in df_f.columns:
-    avg_dist = df_f.groupby("Vehicle_Type")["Ride_Distance"].mean().sort_values(ascending=False)
-    st.bar_chart(avg_dist)
-else:
-    st.write("Vehicle_Type or Ride_Distance column missing.")
+def plt_bar_rides_by_hour(data: pd.DataFrame):
+    if "ride_hour" not in data.columns or data["ride_hour"].dropna().empty:
+        st.info("No ride_hour info.")
+        return
+    hours = data["ride_hour"].dropna().astype(int).value_counts().sort_index()
+    fig, ax = plt.subplots(figsize=(10, 3))
+    ax.bar(hours.index, hours.values)
+    ax.set_xlabel("Hour (0-23)")
+    ax.set_ylabel("Ride Count")
+    ax.set_title("Rides by Hour of Day")
+    st.pyplot(fig)
 
-st.subheader("👥 Top 10 Customers by Booking Value")
-if "Customer_ID" in df_f.columns and "Booking_Value" in df_f.columns:
-    top_customers = df_f.groupby("Customer_ID")["Booking_Value"].sum().nlargest(10).reset_index()
-    st.table(top_customers)
-else:
-    st.write("Customer_ID or Booking_Value column missing.")
 
-# ---------------- Power BI (offline-safe) — screenshot loop ----------------
-st.header("Power BI Dashboard (Screenshots)")
-fig_dir = project_root / "docs" / "figures"
-imgs = sorted(fig_dir.glob("powerbi_*.png"))
-if imgs:
-    for i, img in enumerate(imgs):
-        st.image(str(img), caption=f"Power BI page {i+1}: {img.name}", use_column_width=True)
-else:
-    st.info("No Power BI screenshots found in docs/figures (powerbi_*.png). You can export images from Power BI and save them there.")
+def plt_revenue_by_payment(data: pd.DataFrame):
+    if "Payment_Method" not in data.columns or "Booking_Value" not in data.columns:
+        st.info("Payment_Method or Booking_Value missing.")
+        return
+    # normalize minor label variants
+    tmp = data.copy()
+    tmp["Payment_Method"] = tmp["Payment_Method"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
+    rev = tmp.groupby("Payment_Method")["Booking_Value"].sum().sort_values(ascending=False)
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.bar(rev.index.astype(str), rev.values)
+    ax.set_title("Total Booking Value by Payment Method")
+    ax.set_ylabel("Total Booking Value")
+    ax.set_xticklabels(rev.index, rotation=30, ha="right")
+    st.pyplot(fig)
 
-# ---------------- About / Instructions ----------------
-with st.expander("About / Instructions"):
-    st.markdown(
+
+def plt_cancellations_by_vehicle(data: pd.DataFrame):
+    if "Booking_Status" not in data.columns or "Vehicle_Type" not in data.columns:
+        st.info("Booking_Status or Vehicle_Type missing.")
+        return
+    cancelled = data.loc[data["Booking_Status"] != "Success"]
+    if cancelled.empty:
+        st.info("No cancellations in filtered data")
+        return
+    grouped = cancelled.groupby(["Vehicle_Type", "Booking_Status"]).size().unstack(fill_value=0)
+    fig, ax = plt.subplots(figsize=(9, 3))
+    grouped.plot(kind="bar", ax=ax)
+    ax.set_title("Cancellations by Vehicle Type")
+    ax.set_ylabel("count")
+    st.pyplot(fig)
+
+
+def plt_cancellations_by_hour(data: pd.DataFrame):
+    if "Booking_Status" not in data.columns or "ride_hour" not in data.columns:
+        st.info("Booking_Status or ride_hour missing.")
+        return
+    cancelled = data.loc[data["Booking_Status"] != "Success"]
+    if cancelled.empty:
+        st.info("No cancellations in filtered data")
+        return
+    grouped = cancelled.groupby(["ride_hour", "Booking_Status"]).size().unstack(fill_value=0).sort_index()
+    fig, ax = plt.subplots(figsize=(10, 3))
+    grouped.plot(kind="bar", stacked=False, ax=ax)
+    ax.set_title("Cancellations by Hour of Day")
+    ax.set_xlabel("Hour")
+    st.pyplot(fig)
+
+
+# -----------------------------------------------------------------------------
+# Load insights (optional)
+# -----------------------------------------------------------------------------
+insights_map: Dict[str, str | Dict] = {}
+if INSIGHTS_JSON.exists():
+    try:
+        with open(INSIGHTS_JSON, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+            # allow either a mapping or a single string
+            insights_map = raw if isinstance(raw, dict) else {}
+    except Exception:
+        insights_map = {}
+
+# -----------------------------------------------------------------------------
+# SQLite helper for SQL Runner
+# -----------------------------------------------------------------------------
+def load_sqlite(df_local: pd.DataFrame):
+    conn_local = sqlite3.connect(":memory:")
+    safe_df = df_local.copy()
+    # SQL-friendly column names
+    safe_df.columns = [str(c).replace("-", "_").replace(" ", "_") for c in safe_df.columns]
+    safe_df.to_sql("ola_rides", conn_local, index=False, if_exists="replace")
+    return conn_local
+
+# -----------------------------------------------------------------------------
+# Prepared SQL queries (safer variants)
+# -----------------------------------------------------------------------------
+PREPARED_QUERIES = [
+    ("1 - All successful bookings",
+     "SELECT * FROM ola_rides WHERE Booking_Status = 'Success' LIMIT 100;"),
+
+    ("2 - Avg ride distance by vehicle type",
+     "SELECT Vehicle_Type, AVG(Ride_Distance) AS avg_distance "
+     "FROM ola_rides GROUP BY Vehicle_Type ORDER BY avg_distance DESC;"),
+
+    ("3 - Total number of cancelled rides by customers",
+     "SELECT COUNT(*) AS cancelled_by_customer "
+     "FROM ola_rides "
+     "WHERE Booking_Status IN ('Canceled By Customer','Cancelled By Customer');"),
+
+    ("4 - Top 5 customers (by booking count)",
+     "SELECT Customer_ID, COUNT(*) AS cnt "
+     "FROM ola_rides GROUP BY Customer_ID "
+     "ORDER BY cnt DESC LIMIT 5;"),
+
+    ("5 - Driver cancellations for 'Personal & Car related issue'",
+     "SELECT COUNT(*) AS cnt FROM ola_rides "
+     "WHERE Canceled_Rides_by_Driver = 'Personal & Car related issue';"),
+
+    ("6 - Max/Min driver ratings for Prime Sedan",
+     "SELECT MAX(Driver_Ratings) AS max_rating, MIN(Driver_Ratings) AS min_rating "
+     "FROM ola_rides WHERE Vehicle_Type = 'Prime Sedan';"),
+
+    ("7 - All rides paid with UPI",
+     "SELECT * FROM ola_rides WHERE Payment_Method LIKE '%UPI%' LIMIT 200;"),
+
+    ("8 - Avg customer rating per vehicle type",
+     "SELECT Vehicle_Type, AVG(Customer_Rating) AS avg_customer_rating "
+     "FROM ola_rides GROUP BY Vehicle_Type ORDER BY avg_customer_rating DESC;"),
+
+    ("9 - Total booking value of successful rides",
+     "SELECT SUM(Booking_Value) AS total_success_revenue "
+     "FROM ola_rides WHERE Booking_Status = 'Success';"),
+
+    ("10 - List all incomplete rides with reasons",
+     "SELECT Booking_ID, Incomplete_Rides, Incomplete_Rides_Reason "
+     "FROM ola_rides WHERE Incomplete_Rides IN ('Yes','yes') LIMIT 200;"),
+]
+
+# -----------------------------------------------------------------------------
+# PAGES
+# -----------------------------------------------------------------------------
+if PAGE == "Dashboard":
+    # Header with logos
+    colL, colC, colR = st.columns([1, 6, 1])
+    with colL:
+        if "ola_logo" in logo_files:
+            st.image(str(logo_files["ola_logo"]), width=120)
+    with colC:
+        st.markdown("<h1 style='margin:0;'>Interactive EDA & Dashboard</h1>", unsafe_allow_html=True)
+        st.caption("Explore dataset filters, run SQL queries, and view saved EDA figures.")
+    with colR:
+        names = ["sedan", "mini", "suv", "ebike"]
+        cols = st.columns(len(names))
+        for i, nm in enumerate(names):
+            if nm in logo_files:
+                cols[i].image(str(logo_files[nm]), width=56)
+
+    st.markdown("---")
+
+    # KPIs
+    k1, k2, k3, k4 = st.columns(4)
+    total_rides = len(df_f)
+    success_count = int(df_f["Booking_Status"].eq("Success").sum()) if "Booking_Status" in df_f.columns else 0
+    cancelled_count = total_rides - success_count
+    total_revenue = float(df_f["Booking_Value"].sum()) if "Booking_Value" in df_f.columns else 0.0
+    avg_driver_rating = float(df_f["Driver_Ratings"].mean()) if "Driver_Ratings" in df_f.columns else np.nan
+
+    def kpi_card_html(label, value, bg):
+        return f"""
+        <div style="background:{bg};padding:12px;border-radius:10px;color:white;">
+            <div style="font-size:12px;opacity:0.9">{label}</div>
+            <div style="font-size:20px;font-weight:700;margin-top:6px">{value}</div>
+        </div>
         """
-        **Ola Ride Insights — Streamlit App**
 
-        **What this app does**
-        - Loads the cleaned dataset (`data/ola_cleaned.csv`) when available, otherwise falls back to `data/ola_full.csv`.
-        - Offers sidebar filters for date range, vehicle type and payment method.
-        - Shows KPIs, time-series and summary charts.
-        - Provides an in-memory SQL runner for quick queries.
-        - Allows download of filtered data and includes Power BI screenshots.
-
-        **How to run locally**
-        1. Activate your virtual environment:
-           - PowerShell: `.\.venv\Scripts\Activate.ps1` (or activate your venv).
-        2. Install dependencies:
-           - `pip install -r app/requirements.txt`
-        3. Start the app:
-           - `cd app`
-           - `streamlit run streamlit_app.py`
-
-        **Files to include in the repo**
-        - `data/ola_cleaned.csv` (cleaned dataset)  [optional to include]
-        - `docs/EDA.ipynb`, `docs/EDA.md`, `docs/EXECUTIVE_SUMMARY.md`
-        - `docs/figures/*` (plots & screenshots, including `powerbi_*.png`)
-        - `sql/queries.sql` (SQL answers)
-        - `app/streamlit_app.py`, `app/requirements.txt`
-
-        **Contact / Notes**
-        - Built for the Ola Ride Insights capstone. If the app cannot find a cleaned dataset, run the EDA notebook to create `ola_cleaned.csv`.
-        """
+    k1.markdown(kpi_card_html("Total rides (filtered)", f"{total_rides:,}", "#198754"), unsafe_allow_html=True)
+    k2.markdown(kpi_card_html("Successful rides", f"{success_count:,}", "#0d6efd"), unsafe_allow_html=True)
+    k3.markdown(kpi_card_html("Total booking value", f"₹{total_revenue:,.2f}", "#ff9100"), unsafe_allow_html=True)
+    k4.markdown(
+        kpi_card_html("Avg Driver Rating", f"{avg_driver_rating:.2f}" if not np.isnan(avg_driver_rating) else "N/A", "#6f42c1"),
+        unsafe_allow_html=True,
     )
 
-st.info("Tip: Use the filters then download the filtered CSV for quick export during demos.")
+    st.markdown("---")
+    # two columns
+    left, right = st.columns([2, 1])
+    with left:
+        plt_line_rides_by_date(df_f)
+        st.markdown("**Rides by day** — steady baseline; check end-of-period dips for partial data.")
+    with right:
+        plt_revenue_by_payment(df_f)
+        st.markdown("**Revenue by payment method** — cash & UPI dominate total booking value.")
+
+    st.markdown("---")
+    st.subheader("Time & demand patterns")
+    plt_bar_rides_by_hour(df_f)
+
+    st.markdown("---")
+    st.subheader("Cancellations (breakdowns)")
+    plt_cancellations_by_vehicle(df_f)
+    plt_cancellations_by_hour(df_f)
+
+    st.markdown("---")
+    st.subheader("Top customers")
+    if "Customer_ID" in df_f.columns and "Booking_Value" in df_f.columns:
+        top_customers = df_f.groupby("Customer_ID")["Booking_Value"].sum().nlargest(10).reset_index()
+        st.table(top_customers)
+    else:
+        st.info("Customer_ID or Booking_Value missing for top-customers view.")
+
+elif PAGE == "Screenshots & Insights":
+    st.title("Screenshots & Insights")
+    st.caption("Pre-saved figures from `docs/figures/`. Insights are read-only and loaded from `docs/figures/insights.json` (if present).")
+
+    # logos row
+    logo_paths = [LOGO_DIR / "ola_logo.png", LOGO_DIR / "sedan.png", LOGO_DIR / "mini.png", LOGO_DIR / "suv.png", LOGO_DIR / "ebike.png"]
+    logos_to_show = [p for p in logo_paths if p.exists()]
+    if logos_to_show:
+        cols = st.columns(len(logos_to_show))
+        for c, p in zip(cols, logos_to_show):
+            c.image(str(p), width=100)
+
+    # list all PNGs
+    pngs = sorted(FIG_DIR.glob("*.png")) if FIG_DIR.exists() else []
+    if not pngs:
+        st.info("No PNG figures found in docs/figures/. Save figures from the EDA notebook to docs/figures/")
+    else:
+        for p in pngs:
+            st.header(p.name)
+            cols = st.columns([1, 3])
+            # ✅ no deprecation warning
+            cols[0].image(str(p), use_container_width=True)
+
+            # insight (string or object)
+            val = insights_map.get(p.name, "")
+            insight = val.get("insight", val) if isinstance(val, dict) else val
+            if insight:
+                cols[1].markdown("**Insight:**")
+                cols[1].write(insight)
+            else:
+                cols[1].markdown("**Insight:** _(no insight found — add notes to docs/figures/insights.json)_")
+
+elif PAGE == "SQL Runner":
+    st.title("SQL Runner (in-memory SQLite)")
+    st.write("Run pre-defined queries (select one) or paste a custom SQL. The filtered dataset is loaded into an in-memory SQLite table named `ola_rides`.")
+
+    try:
+        conn = load_sqlite(df_f)
+    except Exception as e:
+        st.error("Failed to load data into in-memory SQLite: " + str(e))
+        conn = None
+
+    prep_labels = [q[0] for q in PREPARED_QUERIES]
+    sel = st.selectbox("Select a prepared query", ["(none)"] + prep_labels)
+    sample_sql = ""
+    if sel != "(none)":
+        idx = prep_labels.index(sel)
+        sample_sql = PREPARED_QUERIES[idx][1]
+        st.code(sample_sql, language="sql")
+
+    st.markdown("Or paste custom SQL (results shown below). Note: table name is `ola_rides`.")
+    custom_sql = st.text_area("SQL", value=sample_sql, height=180)
+
+    if st.button("Run SQL"):
+        if conn is None:
+            st.error("No SQLite connection.")
+        else:
+            try:
+                df_sql = pd.read_sql_query(custom_sql, conn)
+                st.dataframe(df_sql, use_container_width=True)
+                st.write(f"Returned rows: {len(df_sql):,}")
+            except Exception as e:
+                st.error(f"SQL error: {e}")
+
+    # cleanup
+    try:
+        if conn is not None:
+            conn.close()
+    except Exception:
+        pass
+
+elif PAGE == "About":
+    st.title("About — Ola Ride Insights")
+    st.markdown("""
+**Project:** Ola Ride Insights — EDA, SQL, Streamlit dashboard, and Power BI visuals.
+
+**What this app contains**
+- Interactive dashboard with KPIs and EDA charts (derived from `data/ola_cleaned.csv`).
+- Read-only page showing saved EDA figures (docs/figures) and insights (docs/figures/insights.json).
+- SQL Runner with pre-made queries and a custom SQL textbox (works against filtered data).
+
+**Notes & Tips**
+- If some charts show 'No data', widen the Date range or clear filters in the sidebar.
+- Logos live in `docs/figures/logos/` with names `ola_logo.png`, `sedan.png`, `mini.png`, `suv.png`, `ebike.png`.
+- The `insights.json` file is intentionally read-only in the UI to avoid accidental edits. Edit it directly in the repo if you need to change notes.
+
+**Deliverables checklist**
+- ✅ `docs/EDA.md`, `docs/EXECUTIVE_SUMMARY.md`, and figures in `docs/figures/`
+- ✅ Cleaned dataset in `data/ola_cleaned.csv`
+- ✅ Streamlit app in `app/streamlit_app.py`
+- ✅ Power BI dashboard/screenshots in `docs/powerbi/` (optional embed)
+
+**Tech**
+- Python: pandas, numpy, matplotlib, streamlit
+- SQL Runner uses in-memory SQLite with the table `ola_rides`.
+""")
+    if (LOGO_DIR / "ola_logo.png").exists():
+        st.image(str(LOGO_DIR / "ola_logo.png"), width=140)
