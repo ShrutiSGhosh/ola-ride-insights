@@ -117,6 +117,41 @@ Total rides = Sum of statuses
 
 Cancellation counts consistent across SQL and Power BI
 
+## 📈 Business Insights & Recommendations
+
+🔹 Demand & Operations
+
+Peak hours: 7–10 AM and 5–8 PM show the highest ride demand.
+👉 Recommendation: Increase driver allocation during these slots.
+
+Weekday vs weekend: Fridays and Saturdays have slightly higher volumes.
+👉 Recommendation: Run weekend promotions to capture leisure demand.
+
+🔹 Cancellations
+
+Cancellation rate: ~28% of total rides.
+
+Driver-related reasons dominate (e.g., "Personal & Car related issue", "Customer was coughing/sick").
+
+Customer-related reasons include "Driver not moving towards pickup" and "Change of plans".
+👉 Recommendation: Introduce penalties for frequent cancellations and incentivize drivers with bonuses for reliability.
+
+🔹 Revenue
+
+UPI and Cash dominate as payment methods.
+
+Prime Sedan and SUV generate the highest average booking values.
+👉 Recommendation: Encourage digital payments via UPI/Cards with small discounts to reduce cash handling costs.
+
+🔹 Ratings & Service Quality
+
+Driver ratings average around 4.1; Customer ratings average around 3.8.
+
+Gaps between customer vs. driver ratings suggest mismatched expectations.
+👉 Recommendation: Launch a feedback improvement program to address low-rated trips.
+
+📜 License & Contact
+
 ## 📜 License & Contact
 
 License: MIT
