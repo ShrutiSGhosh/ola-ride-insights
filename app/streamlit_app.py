@@ -30,8 +30,10 @@ DATA_DIR = ROOT / "data"
 FIG_DIR = ROOT / "docs" / "figures"
 LOGO_DIR = FIG_DIR / "logos"                       # <-- your logos folder
 INSIGHTS_JSON = FIG_DIR / "insights.json"          # optional
+PBI_PDF = FIG_DIR / "ola_ride_insights.pdf"  # <-- add this
 
 # Prefer cleaned dataset
+CLEANED_WITH_CANCEL = DATA_DIR / "ola_cleaned_with_cancellations.csv"
 CLEANED = DATA_DIR / "ola_cleaned.csv"
 FULL = DATA_DIR / "ola_full.csv"
 SAMPLE = DATA_DIR / "ola_sample.csv"  # optional fallback
@@ -112,7 +114,9 @@ def load_data(path: Path) -> pd.DataFrame:
 
 
 # choose dataset
-if CLEANED.exists():
+if CLEANED_WITH_CANCEL.exists():
+    DATA_PATH = CLEANED_WITH_CANCEL
+elif CLEANED.exists():
     DATA_PATH = CLEANED
 elif FULL.exists():
     DATA_PATH = FULL
@@ -120,10 +124,6 @@ elif SAMPLE.exists():
     DATA_PATH = SAMPLE
 else:
     DATA_PATH = None
-
-if DATA_PATH is None:
-    st.error("No dataset found in data/. Please place ola_cleaned.csv or ola_full.csv in the data/ folder.")
-    st.stop()
 
 # load data
 try:
@@ -170,7 +170,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("## Navigation")
-    PAGE = st.radio("Go to", ["Dashboard", "Screenshots & Insights", "SQL Runner", "About"])
+    PAGE = st.radio("Go to", ["Dashboard", "Power BI (PDF)", "Screenshots & Insights", "SQL Runner", "About"])
 
     st.markdown("---")
     st.markdown("## Filters")
@@ -430,8 +430,50 @@ if PAGE == "Dashboard":
         st.info("Customer_ID or Booking_Value missing for top-customers view.")
 
 elif PAGE == "Screenshots & Insights":
-    st.title("Screenshots & Insights")
-    st.caption("Pre-saved figures from `docs/figures/`. Insights are read-only and loaded from `docs/figures/insights.json` (if present).")
+    st.title("📸 Screenshots & Insights")
+    st.caption("Pre-saved figures from `docs/figures/`. Insights are read from `insights.json` if available.")
+
+    # Load insights.json if it exists
+    insights = {}
+    if INSIGHTS_JSON.exists():
+        try:
+            import json
+            with open(INSIGHTS_JSON, "r", encoding="utf-8") as f:
+                insights = json.load(f)
+        except Exception as e:
+            st.error(f"Failed to load insights.json: {e}")
+
+    # Find all PNG/JPG files in figures (excluding logos folder)
+    image_files = sorted([p for p in FIG_DIR.glob("*") if p.suffix.lower() in [".png", ".jpg", ".jpeg"]])
+
+    if not image_files:
+        st.warning("⚠️ No screenshots found in `docs/figures/`.")
+    else:
+        for img_path in image_files:
+            st.image(str(img_path), use_container_width=True)
+
+            # Match insights if available
+            caption_key = img_path.stem  # e.g. "booking_status_distribution"
+            if caption_key in insights:
+                st.caption(f"📌 Insight: {insights[caption_key]}")
+            st.divider()
+
+elif PAGE == "Power BI (PDF)":
+    st.title("📊 Power BI Report (PDF)")
+    if PBI_PDF.exists():
+        size_mb = PBI_PDF.stat().st_size / (1024*1024)
+        with open(PBI_PDF, "rb") as f:
+            st.download_button(
+                "⬇️ Download ola_ride_insights.pdf",
+                data=f.read(),
+                file_name="ola_ride_insights.pdf",
+                mime="application/pdf",
+                help=f"Size ≈ {size_mb:.1f} MB"
+            )
+        st.success("The Power BI report is ready to download.")
+        st.caption(f"Path: {PBI_PDF}")
+    else:
+        st.warning("Couldn’t find docs/figures/ola_ride_insights.pdf. Place it there and refresh.")
 
     # logos row
     logo_paths = [LOGO_DIR / "ola_logo.png", LOGO_DIR / "sedan.png", LOGO_DIR / "mini.png", LOGO_DIR / "suv.png", LOGO_DIR / "ebike.png"]

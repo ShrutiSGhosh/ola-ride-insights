@@ -1,38 +1,68 @@
 {
-  "correlation_heatmap.png": {
-    "insight": "Ride duration correlates strongly with vehicle turnaround time (V_TAT, r≈0.91) and moderately with customer turnaround time (C_TAT, r≈0.41). Booking value and ride distance show almost no correlation — check fare logic or data quality."
-  },
   "avg_distance_by_vehicle.png": {
-    "insight": "Average ride distances are ~14–16 km for cars and bikes; Autos show much shorter trips (~7 km). Use this to tune vehicle allocation and pricing for last-mile vs longer trips."
+    "insight": "SUV/Prime variants show the longest average trip distances; Auto/Bike serve shorter hops."
   },
-  "cancellations_by_vehicle.png": {
-    "insight": "Driver-side cancellations are the largest share across vehicle types, especially for premium categories. Consider driver incentives or stricter SLAs for premium vehicles."
+  "booking_status_distribution.png": {
+    "insight": "About ~60–65% of bookings complete successfully; driver cancels exceed customer cancels."
   },
-  "cancellations_by_payment.png": {
-    "insight": "Cancellation rates are similar across payment methods. Cash and UPI account for the largest volumes, so small differences there affect totals most."
+  "boxplot_booking_value.png": {
+    "insight": "Booking value is right-skewed—most rides are low to mid value; a few long trips drive the tail."
+  },
+  "boxplot_ride_distance.png": {
+    "insight": "Typical rides sit in a compact range; outliers indicate occasional very long trips."
   },
   "cancellations_by_hour.png": {
-    "insight": "Driver cancellations are consistently higher than customer cancellations across hours, with mild peaks during typical commute windows (≈7–10 and 17–20)."
+    "insight": "Cancellations spike around commute peaks (8–10 AM, 6–8 PM), suggesting demand/supply frictions."
+  },
+  "cancellations_by_payment.png": {
+    "insight": "Cash/UPI dominate cancellations simply due to higher usage; no strong payment-specific risk observed."
+  },
+  "cancellations_by_vehicle.png": {
+    "insight": "Bike shows a slightly higher cancel share; sedans are steadier across time."
+  },
+  "correlation_heatmap.png": {
+    "insight": "Booking_Value correlates with Ride_Distance and duration; ratings show weak correlation to value/time."
+  },
+  "customer_ratings_distribution.png": {
+    "insight": "Customer ratings cluster tightly around 4.0—service quality appears consistent."
   },
   "customer_segmentation.png": {
-    "insight": "Top 5% by value and top 5% by frequency have similar ride distances (~14 km) and ratings (~4.0). Treat value and frequency segments with tailored retention strategies."
+    "insight": "A small segment contributes disproportionately to value—good targets for loyalty perks."
   },
-  "weekly_ride_volume.png": {
-    "insight": "Weekly ride volume is stable around a baseline with an end-of-period drop driven by partial data; flag incomplete weeks when reporting."
+  "daily_ride_volume.png": {
+    "insight": "Daily volume fluctuates with mild mid-month upticks; weekend dips reflect commute-driven demand."
   },
-  "rides_by_day.png": {
-    "insight": "Weekdays (Mon–Wed) show higher volumes; weekends are lower. Opportunity: weekend-targeted promotions to smooth demand."
-  },
-  "ride_distance_boxplot.png": {
-    "insight": "Most rides fall between 0–26 km (IQR=26). Few long rides near 50 km exist but are within expected variability."
-  },
-  "booking_value_boxplot.png": {
-    "insight": "Booking values cluster between ₹200–₹600 with a long right tail; values > ~₹1,190 are flagged as potential high-value outliers (validate for surge/pricing errors)."
+  "driver_ratings_distribution.png": {
+    "insight": "Driver ratings mirror customer ratings (3.8–4.2 core band) with few extremes."
   },
   "incomplete_reasons.png": {
-    "insight": "Top incomplete/failed ride reasons include 'Customer Demand' and 'Vehicle Breakdown'. Focus on fleet maintenance and flexible customer options to reduce incompletes."
+    "insight": "Operational issues (e.g., AC not working, address issues) lead most incomplete cases."
+  },
+  "incomplete_rides.png": {
+    "insight": "Incomplete rides are a small fraction but worth targeting in hotspots to reduce leakage."
+  },
+  "revenue_by_payment_method.png": {
+    "insight": "Cash and UPI contribute ~90% of revenue; card payments are small but stable."
+  },
+  "ride_duration_boxplot.png": {
+    "insight": "Most rides finish within a compact duration band; tail events drive peaks in value and distance."
+  },
+  "ride_duration_zoomed.png": {
+    "insight": "Zoom clarifies the central mass of ride times—useful for SLA and ETA setting."
+  },
+  "rides_by_dayofweek.png": {
+    "insight": "Weekday rides > weekend rides, reinforcing commute-heavy usage."
+  },
+  "rides_by_hour.png": {
+    "insight": "Two clear peaks (AM/PM commutes); late night demand is minimal."
+  },
+  "top_customers.png": {
+    "insight": "Top customers book far more frequently—opportunity for subscription or rewards."
   },
   "top_customers_value.png": {
-    "insight": "Top customers contribute materially to revenue (top ~10 customers ~₹5k–8k). Consider loyalty perks to retain these high-value users."
+    "insight": "Top 10 customers contribute a sizable share of total value—prioritize retention."
+  },
+  "weekly_trend.png": {
+    "insight": "Weekly seasonality is visible: early-week ramps, weekend softening."
   }
 }
