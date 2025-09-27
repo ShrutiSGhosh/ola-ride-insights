@@ -1,134 +1,126 @@
-# ola-ride-insights
-Ola Ride Insights — end-to-end ride-sharing analytics: SQL + Power BI dashboards + Streamlit app for interactive BI and business insights.  Recommended repo topics/tags: data-science, streamlit, powerbi, sql, eda, data-cleaning, visualization, ride-sharing, ola
-# Ola Ride Insights
+🚖 Ola Ride Insights
 
-**End-to-end mini-capstone project** analyzing Ola ride data to produce business insights.  
+End-to-end mini-capstone project analyzing Ola ride data to produce actionable business insights.
 Includes: SQL query templates, data cleaning & EDA, Power BI dashboards, and a Streamlit app that presents insights interactively.
 
----
+Recommended repo tags: data-science, streamlit, powerbi, sql, eda, data-cleaning, visualization, ride-sharing, ola
 
-## 🔎 Project Overview
-This project explores Ola ride-sharing data to identify demand patterns, cancellation causes, driver/customer ratings, and revenue drivers. Deliverables include:
-- Cleaned dataset and EDA
-- SQL query templates for common business questions
-- Interactive Power BI report (Overall, Vehicle Type, Revenue, Cancellation, Ratings views)
-- Streamlit app that runs SQL, shows KPIs/visualizations and embeds Power BI visuals
+🔎 Project Overview
 
----
+This project explores Ola ride-sharing data to identify demand patterns, cancellation causes, driver/customer ratings, and revenue drivers.
 
-## 📁 Repository structure
+Deliverables include:
+
+✅ Cleaned dataset and EDA
+
+✅ SQL query templates for common business questions
+
+✅ Interactive Power BI report (Overall, Vehicle Type, Revenue, Cancellation, Ratings views)
+
+✅ Streamlit app that runs SQL, shows KPIs/visualizations, and embeds Power BI insights
+
+📁 Repository Structure
 ola-ride-insights/
 ├─ data/
-│ ├─ ola_sample.csv # sample or full dataset (if permitted)
-│ ├─ summary_sheet.csv # aggregated sheet(s) (vehicle averages etc.)
-│ ├─ vehicle-icons.csv # vehicle type → icon URL mapping
+│   ├─ ola_cleaned_with_cancellations.csv   # main cleaned dataset
+│   ├─ ola_sample.csv                       # optional sample dataset
+│   ├─ ola_full.csv                         # full dataset
+│   ├─ ola_cleaned.csv                      # cleaned base dataset
 ├─ sql/
-│ ├─ queries.sql # SQL templates for requested queries
-├─ powerbi/
-│ ├─ notes.md # Power BI build & embed instructions
-├─ app/
-│ ├─ streamlit_app.py # Streamlit app (main)
-│ ├─ requirements.txt
+│   ├─ queries.sql                          # SQL templates for analysis
 ├─ docs/
-│ ├─ DATA_CLEANING.md
-│ ├─ EDA.md
-├─ .gitignore
+│   ├─ figures/                             # Power BI PDF + exported figures
+│   ├─ DATA_CLEANING.md
+│   ├─ EDA.md
+├─ app/
+│   ├─ streamlit_app.py                     # Streamlit app (main)
+│   ├─ requirements.txt
+├─ ola_ride_insights.pbix                   # (optional, not tracked in GitHub if >100MB)
 ├─ README.md
 
+🧾 Dataset
 
----
+Primary CSV: data/ola_cleaned_with_cancellations.csv (≈103,025 rows, 26 columns).
 
-## 🧾 Dataset
-- Primary CSV: `data/ola_sample.csv` (≈103,025 rows, 20 columns).  
-- Aggregates / other sheets: include `data/summary_sheet.csv` (e.g. avg distances per vehicle, booking status counts).
-- If file size is large, store dataset in a release, Google Drive, or cloud storage; add download instructions in `DATA_CLEANING.md`.
+Contains booking status, cancellations, customer/driver ratings, revenue, and ride details.
 
----
+For larger datasets, use cloud storage (Google Drive, OneDrive, Releases).
 
-## 🚀 How to run locally
-1. Clone the repo:
-```bash
-git clone https://github.com/<ShrutiSGhosh>/ola-ride-insights.git
+📊 Power BI Report
+
+The full Power BI dashboard is available as a PDF:
+👉 📂 Download ola_ride_insights.pdf
+
+If you need the .pbix file, please contact the author (not committed due to size limits).
+
+🚀 Streamlit App
+
+👉 Live App: Ola Ride Insights Streamlit App
+
+Run locally:
+
+# Clone repo
+git clone https://github.com/<your-username>/ola-ride-insights.git
 cd ola-ride-insights/app
-Create a virtual environment and install dependencies:
 
+# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate   # mac/linux
-.venv\Scripts\activate      # windows
+.venv\Scripts\activate   # Windows
+source .venv/bin/activate   # Mac/Linux
+
+# Install dependencies
 pip install -r requirements.txt
 
-
-Start the Streamlit app:
-
+# Run the app
 streamlit run streamlit_app.py
 
+🧭 Power BI Notes
 
-The app by default loads data/ola_sample.csv. If you store the CSV elsewhere (raw GitHub URL or cloud), update RAW_GITHUB_URL inside the app.
+Built in Power BI Desktop → published as .pbix → exported as .pdf.
 
-☁️ Deploy on Streamlit Community Cloud
+Interactive dashboard contains:
 
-Push your repo to GitHub.
+Overall KPIs (revenue, rides, cancellations)
 
-Sign in to https://streamlit.io/cloud
- with GitHub.
+Vehicle Type analysis
 
-Create a new app → select repo/branch and set app/streamlit_app.py as the main file.
+Revenue insights
 
-Add secrets (if any) under app settings (Power BI embed tokens, DB creds).
+Cancellation breakdowns
 
-Deploy.
+Ratings distribution
 
-🧭 Power BI & Embed notes
+🧹 Data Cleaning
 
-Build reports in Power BI Desktop, publish to Power BI Service.
+Key steps:
 
-Embed to Streamlit using an iframe (public publish to web) or secure embed token (Power BI Embedded/Azure).
+Combine Date + Time → single Datetime column.
 
-See powerbi/notes.md for step-by-step embed options and security considerations.
+Normalize Booking_Status (Success, Canceled by Driver, Canceled by Customer, Driver Not Found).
 
-📌 Vehicle icons mapping (useful for UI)
+Convert numeric fields (Booking_Value, Ride_Distance, Driver_Ratings, Customer_Rating) → numeric types.
 
-Add data/vehicle-icons.csv with Vehicle_Type,Icon_URL. Example:
+Replace nulls with NaN or Unknown.
 
-Prime Sedan,https://cdn-icons-png.flaticon.com/128/14183/14183770.png
-Bike,https://cdn-icons-png.flaticon.com/128/9983/9983173.png
-Prime SUV,https://cdn-icons-png.flaticon.com/128/9983/9983204.png
-eBike,https://cdn-icons-png.flaticon.com/128/6839/6839867.png
-Mini,https://cdn-icons-png.flaticon.com/128/3202/3202926.png
-Prime Plus,https://cdn-icons-png.flaticon.com/128/11409/11409716.png
-Auto,https://cdn-icons-png.flaticon.com/128/16526/16526595.png
+Drop irrelevant columns.
 
+Details in docs/DATA_CLEANING.md
+.
 
-In Streamlit you can fetch the URL and show st.image(icon_url, width=48) next to a vehicle label.
+🧪 Testing & Validation
 
-🧹 Data cleaning notes
+SQL queries in sql/queries.sql validated against Pandas aggregations.
 
-Convert Date + Time → a single datetime column.
+Cross-checks:
 
-Normalize Booking_Status (e.g., Canceled by Driver, Canceled by Customer, Driver Not Found, Success).
+Total rides = Sum of statuses
 
-Convert numeric columns (Booking_Value, Ride_Distance, Driver_Ratings, Customer_Rating, V_TAT, C_TAT) to numeric, coerce errors → NaN.
-
-Replace null strings with actual NaN or Unknown for categorical fields.
-
-Drop Vehicle Images column if not usable.
-
-(See docs/DATA_CLEANING.md for the column-by-column plan.)
-
-🧪 Testing & validation
-
-Keep sql/queries.sql and validate each SQL result by cross-checking with Pandas aggregation in notebooks.
-
-Add unit checks (small scripts) for counts like total rides == sum of statuses.
-
-🤝 Contributing
-
-Use main for releases & dev for active development. Create feature branches: feature/streamlit-filters, feature/powerbi-report.
-
-Pull Request template: title, short description, related files changed, test checklist.
+Cancellation counts consistent across SQL and Power BI
 
 📜 License & Contact
 
-License: MIT 
+License: MIT
 
-Contact: <shrutisghosh@outlook.com>
+Author: Shruti S Ghosh
+
+Contact: 📩 shrutisghosh@outlook.com
