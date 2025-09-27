@@ -1,9 +1,5 @@
-## 🚖 Ola Ride Insights
-
-End-to-end mini-capstone project analyzing Ola ride data to produce actionable business insights.
-Includes: SQL query templates, data cleaning & EDA, Power BI dashboards, and a Streamlit app that presents insights interactively.
-
-Recommended repo tags: data-science, streamlit, powerbi, sql, eda, data-cleaning, visualization, ride-sharing, ola
+## 🚖 Ola Ride Insights ## 🌐 Live Demo
+You can try the dashboard here: [Streamlit App](https://ola-ride-insights-shrutisghosh.streamlit.app/)
 
 ## 🔎 Project Overview
 
