@@ -1,15 +1,15 @@
-🚖 Ola Ride Insights
+## 🚖 Ola Ride Insights
 
 End-to-end mini-capstone project analyzing Ola ride data to produce actionable business insights.
 Includes: SQL query templates, data cleaning & EDA, Power BI dashboards, and a Streamlit app that presents insights interactively.
 
 Recommended repo tags: data-science, streamlit, powerbi, sql, eda, data-cleaning, visualization, ride-sharing, ola
 
-🔎 Project Overview
+## 🔎 Project Overview
 
 This project explores Ola ride-sharing data to identify demand patterns, cancellation causes, driver/customer ratings, and revenue drivers.
 
-Deliverables include:
+## Deliverables include:
 
 ✅ Cleaned dataset and EDA
 
@@ -19,7 +19,7 @@ Deliverables include:
 
 ✅ Streamlit app that runs SQL, shows KPIs/visualizations, and embeds Power BI insights
 
-📁 Repository Structure
+## 📁 Repository Structure
 ola-ride-insights/
 ├─ data/
 │   ├─ ola_cleaned_with_cancellations.csv   # main cleaned dataset
@@ -38,7 +38,7 @@ ola-ride-insights/
 ├─ ola_ride_insights.pbix                   # (optional, not tracked in GitHub if >100MB)
 ├─ README.md
 
-🧾 Dataset
+## 🧾 Dataset
 
 Primary CSV: data/ola_cleaned_with_cancellations.csv (≈103,025 rows, 26 columns).
 
@@ -46,14 +46,14 @@ Contains booking status, cancellations, customer/driver ratings, revenue, and ri
 
 For larger datasets, use cloud storage (Google Drive, OneDrive, Releases).
 
-📊 Power BI Report
+## 📊 Power BI Report
 
 The full Power BI dashboard is available as a PDF:
 👉 📂 Download ola_ride_insights.pdf
 
 If you need the .pbix file, please contact the author (not committed due to size limits).
 
-🚀 Streamlit App
+## 🚀 Streamlit App
 
 👉 Live App: Ola Ride Insights Streamlit App
 
@@ -74,7 +74,7 @@ pip install -r requirements.txt
 # Run the app
 streamlit run streamlit_app.py
 
-🧭 Power BI Notes
+## 🧭 Power BI Notes
 
 Built in Power BI Desktop → published as .pbix → exported as .pdf.
 
@@ -90,7 +90,7 @@ Cancellation breakdowns
 
 Ratings distribution
 
-🧹 Data Cleaning
+## 🧹 Data Cleaning
 
 Key steps:
 
@@ -107,7 +107,7 @@ Drop irrelevant columns.
 Details in docs/DATA_CLEANING.md
 .
 
-🧪 Testing & Validation
+## 🧪 Testing & Validation
 
 SQL queries in sql/queries.sql validated against Pandas aggregations.
 
@@ -117,10 +117,10 @@ Total rides = Sum of statuses
 
 Cancellation counts consistent across SQL and Power BI
 
-📜 License & Contact
+## 📜 License & Contact
 
 License: MIT
 
-Author: Shruti S Ghosh
+## Author: Shruti S Ghosh
 
 Contact: 📩 shrutisghosh@outlook.com
