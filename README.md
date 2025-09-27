@@ -1,5 +1,5 @@
 ## 🚖 Ola Ride Insights ## 🌐 Live Demo
-You can try the dashboard here: [Streamlit App](https://ola-ride-insights-shrutisghosh.streamlit.app/)
+You can try the dashboard here 👉: [Streamlit App](https://ola-ride-insights-shrutisghosh.streamlit.app/)
 
 ## 🔎 Project Overview
 
